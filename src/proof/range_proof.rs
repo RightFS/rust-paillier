@@ -12,7 +12,9 @@ use proof::correct_key::CorrectKeyProofError;
 use traits::*;
 use {BigInt, EncryptionKey, Paillier, RawCiphertext, RawPlaintext};
 
-const STATISTICAL_ERROR_FACTOR: usize = 10;
+// STATISTICAL_ERROR_FACTOR needs to be divisible by 8
+const STATISTICAL_ERROR_FACTOR: usize = 8;
+#[cfg(test)]
 const RANGE_BITS: usize = 256; //for elliptic curves with 256bits for example
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -240,7 +242,7 @@ impl RangeProof for Paillier {
         let range_scaled_third: BigInt = range.div_floor(&BigInt::from(3));
         let range_scaled_two_thirds = BigInt::from(2) * &range_scaled_third;
         let bits_of_e = BitVec::from_bytes(&e.0);
-        let reponses: Vec<_> = (0..STATISTICAL_ERROR_FACTOR)
+        let responses: Vec<_> = (0..STATISTICAL_ERROR_FACTOR)
             .into_par_iter()
             .map(|i| {
                 let ei = bits_of_e[i];
@@ -271,7 +273,7 @@ impl RangeProof for Paillier {
             })
             .collect();
 
-        Proof(reponses)
+        Proof(responses)
     }
 
     fn verifier_output(
@@ -438,7 +440,7 @@ mod tests {
         let (verifier_ek, _verifier_dk) = test_keypair().keys();
         let range = BigInt::from(0xFFFFFFFFFFFFFi64);
         let (_com, _r, e) = Paillier::verifier_commit(&verifier_ek);
-        let (_encrypted_pairs, data_and_randmoness_pairs) =
+        let (_encrypted_pairs, data_and_randomness_pairs) =
             Paillier::generate_encrypted_pairs(&ek, &range);
         let secret_r = BigInt::sample_below(&ek.n);
         let secret_x = BigInt::from(0xFFFFFFFi64);
@@ -448,7 +450,7 @@ mod tests {
             &secret_r,
             &e,
             &range,
-            &data_and_randmoness_pairs,
+            &data_and_randomness_pairs,
         );
     }
 
@@ -543,7 +545,7 @@ mod tests {
             let (ek, _dk) = test_keypair().keys();
             let (verifier_ek, _verifier_dk) = test_keypair().keys();
             // verifier:
-            let (_com, r, e) = Paillier::verifier_commit(&verifier_ek);
+            let (_com, _r, e) = Paillier::verifier_commit(&verifier_ek);
             // prover:
             let (encrypted_pairs, data_and_randmoness_pairs) =
                 Paillier::generate_encrypted_pairs(&ek, &range);

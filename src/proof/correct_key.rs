@@ -10,7 +10,8 @@ use arithimpl::traits::*;
 use core::extract_nroot;
 use {BigInt, DecryptionKey, EncryptionKey, Paillier};
 
-const STATISTICAL_ERROR_FACTOR: usize = 10;
+// STATISTICAL_ERROR_FACTOR needs to be divisible by 8
+const STATISTICAL_ERROR_FACTOR: usize = 8;
 
 // TODO: generalize the error string and move the struct to a common location where all other proofs can use it as well
 // TODO[Morten]: better: use error chain!
@@ -198,7 +199,7 @@ where
 mod tests {
 
     use super::*;
-    use traits::*;
+    // use traits::*;
     use Keypair;
 
     fn test_keypair() -> Keypair {
