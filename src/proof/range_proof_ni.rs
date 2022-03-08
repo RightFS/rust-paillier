@@ -92,7 +92,7 @@ where
 
 #[cfg(test)]
 mod tests {
-
+    use std::borrow::{BorrowMut, Cow};
     use super::*;
     use test::Bencher;
     use traits::*;
@@ -127,6 +127,20 @@ mod tests {
         );
         let (encrypted_pairs, challenge, proof) =
             Paillier::prover(&ek, &range, &secret_x, &secret_r);
+        let json = serde_json::to_string(&ek).unwrap();
+        println!("ek: {}",json);
+        let json = serde_json::to_string(&challenge).unwrap();
+        println!("challenge: {}",json);
+        let json = serde_json::to_string(&encrypted_pairs).unwrap();
+        println!("encrypted_pairs: {}",json);
+        let json = serde_json::to_string(&proof).unwrap();
+        println!("proof: {}",json);
+        let v8 = Vec::<u8>::from(&range);
+        let json =serde_json::to_string(&v8).unwrap();
+        println!("range: {}",json);
+        let cipher= cipher_x.clone();
+        let json = serde_json::to_string(&Vec::<u8>::from(&cipher.0.into_owned())).unwrap();
+        println!("cipher: {}",json);
         let result =
             Paillier::verifier(&ek, &challenge, &encrypted_pairs, &proof, &range, cipher_x);
         assert!(result.is_ok(), true);
@@ -156,20 +170,20 @@ mod tests {
     #[bench]
     fn bench_range_proof(b: &mut Bencher) {
         // TODO: bench range for 256bit range.
+        let (ek, _dk) = test_keypair().keys();
+        let range = BigInt::sample(RANGE_BITS);
+        let secret_r = BigInt::sample_below(&ek.n);
+        let secret_x = BigInt::sample_below(&range.div_floor(&BigInt::from(3)));
+        let cipher_x = Paillier::encrypt_with_chosen_randomness(
+            &ek,
+            RawPlaintext::from(&secret_x),
+            &Randomness(secret_r.clone()),
+        );
+        let (encrypted_pairs, challenge, proof) =
+            Paillier::prover(&ek, &range, &secret_x, &secret_r);
         b.iter(|| {
-            let (ek, _dk) = test_keypair().keys();
-            let range = BigInt::sample(RANGE_BITS);
-            let secret_r = BigInt::sample_below(&ek.n);
-            let secret_x = BigInt::sample_below(&range.div_floor(&BigInt::from(3)));
-            let cipher_x = Paillier::encrypt_with_chosen_randomness(
-                &ek,
-                RawPlaintext::from(&secret_x),
-                &Randomness(secret_r.clone()),
-            );
-            let (encrypted_pairs, challenge, proof) =
-                Paillier::prover(&ek, &range, &secret_x, &secret_r);
             let result =
-                Paillier::verifier(&ek, &challenge, &encrypted_pairs, &proof, &range, cipher_x);
+                Paillier::verifier(&ek, &challenge, &encrypted_pairs, &proof, &range, cipher_x.clone());
             assert_eq!(result.is_ok(), true);
         });
     }
