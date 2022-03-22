@@ -93,11 +93,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
+    use std::io::{Read, Write};
     use super::*;
     use test::Bencher;
+    use bit_vec::BitVec;
     use rustc_serialize::hex::ToHex;
-    use serde_json::Value::String;
     use traits::*;
     use {Keypair, RawPlaintext};
     use Randomness;
@@ -124,13 +124,59 @@ mod tests {
     #[test]
     fn test_compute_digest(){
         let mut vec: Vec<BigInt> = Vec::new();
-        vec.push(BigInt::from(123123123));
-        vec.push(BigInt::from(123123123));
-        vec.push(BigInt::from(123123123));
+        vec.push(BigInt::from(123123123123i64));
+        vec.push(BigInt::from(321312312312312312i64));
+        vec.push(BigInt::from(567876545678i64));
         let res = compute_digest(vec.iter());
         let hex = res.to_hex();
         println!("{}", hex);
+        //5a43284b72bbc64d6d66df2f0b5de51e68c881a16a60aa4576d17d36b0fdf3b6
+        //[
+        //    90,  67,  40,  75, 114, 187, 198,  77,
+        //   109, 102, 223,  47,  11,  93, 229,  30,
+        //   104, 200, 129, 161, 106,  96, 170,  69,
+        //   118, 209, 125,  54, 176, 253, 243, 182
+        // ]
     }
+    #[derive(Debug, Serialize, Deserialize)]
+    pub struct ProofParams{
+        pub encrypted_pairs: EncryptedPairs,
+        pub challenge_bits: ChallengeBits,
+        pub proof: Proof,
+        #[serde(with = "::serialize::bigint")]
+        pub range: BigInt,
+        #[serde(with = "::serialize::bigint")]
+        pub cipher_x: BigInt,
+    }
+    #[test]
+    fn test_prover_js() {
+        // let bits_of_e = BitVec::from_bytes(&[0xf0, 0x11]);
+        // for i in 0..bits_of_e.len(){
+        //     print!("{} ", bits_of_e[i]);
+        // }
+        // println!("{:?}", bits_of_e.len());
+        let mut file = std::fs::File::open("test.json").expect("open failed");
+        let mut json=String::new();
+        file.read_to_string(&mut json).expect("read failed");
+        let proof_params: ProofParams = serde_json::from_str(&json).expect("json parse failed");
+        let (ek, _dk) = test_keypair().keys();
+        let range = BigInt::from(300000000000i64);
+        let secret_r = BigInt::from(123123123);
+        let secret_x = BigInt::from(10);
+        let cipher_x = Paillier::encrypt_with_chosen_randomness(
+            &ek,
+            RawPlaintext::from(&secret_x),
+            &Randomness(secret_r.clone()),
+        );
+        let (encrypted_pairs, challenge, proof) =
+            Paillier::prover(&ek, &range, &secret_x, &secret_r);
+        println!("{:?}", proof_params);
+
+        let result =
+            Paillier::verifier(&ek, &proof_params.challenge_bits, &proof_params.encrypted_pairs, &proof_params.proof, &proof_params.range, proof_params.cipher_x.into());
+        assert!(result.is_ok());
+    }
+
     #[test]
     fn test_prover() {
         let (ek, _dk) = test_keypair().keys();
@@ -160,9 +206,10 @@ mod tests {
         let challenge_b = bincode::serialize(&challenge).unwrap();
         let mut file = std::fs::File::create("challenge.bin").expect("create failed");
         file.write_all(challenge_b.as_slice());
-        let encrypted_pairs_b = bincode::serialize(&encrypted_pairs).unwrap();
+        // let encrypted_pairs_b = bincode::serialize(&encrypted_pairs).unwrap();
+        let encrypted_pairs_b = serde_json::to_string(&encrypted_pairs).unwrap();
         let mut file = std::fs::File::create("encrypted_pairs.bin").expect("create failed");
-        file.write_all(encrypted_pairs_b.as_slice());
+        file.write_all(encrypted_pairs_b.as_bytes());
         let proof_b = bincode::serialize(&proof).unwrap();
         let mut file = std::fs::File::create("proof.bin").expect("create failed");
         file.write_all(proof_b.as_slice());
