@@ -150,28 +150,10 @@ mod tests {
     }
     #[test]
     fn test_prover_js() {
-        // let bits_of_e = BitVec::from_bytes(&[0xf0, 0x11]);
-        // for i in 0..bits_of_e.len(){
-        //     print!("{} ", bits_of_e[i]);
-        // }
-        // println!("{:?}", bits_of_e.len());
         let mut file = std::fs::File::open("test.json").expect("open failed");
         let mut json=String::new();
         file.read_to_string(&mut json).expect("read failed");
         let proof_params: ProofParams = serde_json::from_str(&json).expect("json parse failed");
-        let (ek, _dk) = test_keypair().keys();
-        let range = BigInt::from(300000000000i64);
-        let secret_r = BigInt::from(123123123);
-        let secret_x = BigInt::from(10);
-        let cipher_x = Paillier::encrypt_with_chosen_randomness(
-            &ek,
-            RawPlaintext::from(&secret_x),
-            &Randomness(secret_r.clone()),
-        );
-        let (encrypted_pairs, challenge, proof) =
-            Paillier::prover(&ek, &range, &secret_x, &secret_r);
-        println!("{:?}", proof_params);
-
         let result =
             Paillier::verifier(&ek, &proof_params.challenge_bits, &proof_params.encrypted_pairs, &proof_params.proof, &proof_params.range, proof_params.cipher_x.into());
         assert!(result.is_ok());
